@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: pg-aprendizado
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: ${APRENDIZADO_DB_DATABASE}
+      POSTGRES_USER: ${APRENDIZADO_DB_USERNAME}
+      POSTGRES_PASSWORD: ${APRENDIZADO_DB_PASSWORD}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - rede-aprendizado
+  api:
+    build: .
+    container_name: aprendizado_api
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      APRENDIZADO_DB_URL: ${APRENDIZADO_DOCKER_DB_URL}
+      APRENDIZADO_DB_USERNAME: ${APRENDIZADO_DB_USERNAME}
+      APRENDIZADO_DB_PASSWORD: ${APRENDIZADO_DB_PASSWORD}
+    networks:
+      - rede-aprendizado
+
+volumes:
+  postgres_data:
+
+networks:
+    rede-aprendizado:
+      driver: bridge

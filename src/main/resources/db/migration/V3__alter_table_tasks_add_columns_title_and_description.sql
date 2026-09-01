@@ -1,0 +1,3 @@
+ALTER TABLE tasks
+ADD COLUMN title VARCHAR(50),
+ADD COLUMN description TEXT;

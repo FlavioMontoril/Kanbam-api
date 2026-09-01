@@ -1,0 +1,25 @@
+# Ignorar a pasta de build local (evita conflitos e lentidão)
+target/
+.env
+
+# DESENVOLVIMENTO
+src/main/resources/application-local.properties
+
+
+# Ignorar pastas de configuração da IDE (Eclipse, IntelliJ, VS Code)
+.idea/
+*.iml
+.settings/
+.classpath
+.project
+
+# Ignorar arquivos do Git
+.git
+.gitignore
+
+# Ignorar arquivos do próprio sistema operacional
+.DS_Store
+Thumbs.db
+
+# Ignorar logs locais
+*.log
