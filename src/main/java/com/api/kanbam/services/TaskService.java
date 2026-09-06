@@ -1,13 +1,18 @@
 package com.api.kanbam.services;
 
+import com.api.kanbam.domain.dtos.commons.Pagination;
 import com.api.kanbam.domain.dtos.task.TaskRequestDTO;
 import com.api.kanbam.domain.dtos.task.TaskResponseDTO;
+import com.api.kanbam.domain.dtos.task.TasksCountDTO;
 import com.api.kanbam.domain.dtos.task.UpdateTaskStatusDTO;
 import com.api.kanbam.domain.entities.Task;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,6 +22,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TaskService {
 
+    private static final int MAX_SIZE = 20;
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
 
@@ -60,5 +66,33 @@ public class TaskService {
         taskHistoryService.recordStatusChange(updatedTask, previousStatus, newStatus);
 
         return new TaskResponseDTO(updatedTask);
+    }
+
+    public Pagination<TaskResponseDTO> findAllTasksPerStatus(TaskStatus status, int page, int size){
+
+        int validPage = Math.max(page, 0);
+        int validSize = Math.clamp(size, 1, MAX_SIZE);
+
+        Pageable pageable = PageRequest.of(validPage, validSize);
+
+        Page<TaskResponseDTO> task = taskRepository.findByStatus(status, pageable).map(TaskResponseDTO::new);
+
+        return new Pagination<>(
+                task.getContent(),
+                task.getSize(),
+                task.getTotalPages(),
+                task.getTotalElements()
+        );
+    }
+
+    public TasksCountDTO countTaskPerStatus(){
+        long open = taskRepository.countByStatus(TaskStatus.OPEN);
+        long done = taskRepository.countByStatus(TaskStatus.DONE);
+        long cancelled = taskRepository.countByStatus(TaskStatus.CANCELED);
+        long in_progress = taskRepository.countByStatus(TaskStatus.IN_PROGRESS);
+        long under_review = taskRepository.countByStatus(TaskStatus.UNDER_REVIEW);
+        long total = open + done + cancelled + in_progress + under_review;
+
+        return new TasksCountDTO(open, done, cancelled, in_progress, under_review, total);
     }
 }
