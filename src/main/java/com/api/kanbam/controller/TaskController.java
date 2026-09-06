@@ -1,8 +1,11 @@
 package com.api.kanbam.controller;
 
+import com.api.kanbam.domain.dtos.commons.Pagination;
 import com.api.kanbam.domain.dtos.task.TaskRequestDTO;
 import com.api.kanbam.domain.dtos.task.TaskResponseDTO;
+import com.api.kanbam.domain.dtos.task.TasksCountDTO;
 import com.api.kanbam.domain.dtos.task.UpdateTaskStatusDTO;
+import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.services.TaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,11 +29,28 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.CREATED).body("Created Task Succesfully");
     }
 
-    @GetMapping()
+    @GetMapping
     public ResponseEntity<List<TaskResponseDTO>> findAllTasks(){
         List<TaskResponseDTO> tasks = taskService.findAllTasks();
         return ResponseEntity.status(HttpStatus.OK).body(tasks);
     }
+
+    @GetMapping("/count")
+    public ResponseEntity<TasksCountDTO> countTasks(){
+        return ResponseEntity.ok(taskService.countTaskPerStatus());
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<Pagination<TaskResponseDTO>> findTaskByStatus(
+            @RequestParam() TaskStatus status,
+            @RequestParam() int page,
+            @RequestParam(defaultValue = "10") int size
+            ){
+        Pagination<TaskResponseDTO> response = taskService.findAllTasksPerStatus(status, page, size);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
 
     @PatchMapping("/{taskId}/status")
 
