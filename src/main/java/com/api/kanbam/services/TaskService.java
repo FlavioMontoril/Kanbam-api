@@ -74,12 +74,17 @@ public class TaskService {
         int validSize = Math.clamp(size, 1, MAX_SIZE);
 
         Pageable pageable = PageRequest.of(validPage, validSize);
+        Page<TaskResponseDTO> task;
 
-        Page<TaskResponseDTO> task = taskRepository.findByStatus(status, pageable).map(TaskResponseDTO::new);
+        if(status != null){
+            task = taskRepository.findByStatus(status, pageable).map(TaskResponseDTO::new);
+        }else{
+            task = taskRepository.findAll(pageable).map(TaskResponseDTO::new);
+        }
 
         return new Pagination<>(
                 task.getContent(),
-                task.getSize(),
+                task.getNumber(),
                 task.getTotalPages(),
                 task.getTotalElements()
         );
