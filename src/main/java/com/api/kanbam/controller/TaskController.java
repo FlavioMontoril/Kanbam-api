@@ -42,7 +42,7 @@ public class TaskController {
 
     @GetMapping("/paged")
     public ResponseEntity<Pagination<TaskResponseDTO>> findTaskByStatus(
-            @RequestParam() TaskStatus status,
+            @RequestParam(required = false) TaskStatus status,
             @RequestParam() int page,
             @RequestParam(defaultValue = "10") int size
             ){
