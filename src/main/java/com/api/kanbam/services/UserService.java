@@ -1,10 +1,13 @@
 package com.api.kanbam.services;
 
 import com.api.kanbam.domain.dtos.user.UserRequestDTO;
+import com.api.kanbam.domain.dtos.user.UserResponseDTO;
 import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -23,5 +26,12 @@ public class UserService {
                 .build();
 
         userRepository.save(user);
+    }
+
+    public List<UserResponseDTO> findAllUsersService() {
+        return userRepository.findAll()
+                .stream()
+                .map(UserResponseDTO::new)
+                .toList();
     }
 }

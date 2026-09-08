@@ -6,8 +6,10 @@ import com.api.kanbam.domain.dtos.task.TaskResponseDTO;
 import com.api.kanbam.domain.dtos.task.TasksCountDTO;
 import com.api.kanbam.domain.dtos.task.UpdateTaskStatusDTO;
 import com.api.kanbam.domain.entities.Task;
+import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
+import com.api.kanbam.domain.repositories.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -25,16 +27,26 @@ public class TaskService {
     private static final int MAX_SIZE = 20;
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
+    private final UserRepository userRepository;
 
     public void createTask(TaskRequestDTO data){
+
         taskRepository.findByCode(data.code()).ifPresent(hasTask -> {throw new RuntimeException("Existe tarefa cadastrada com este código");
         });
+
+        User assigneeUser = null;
+        if (data.userId() != null ) {
+            assigneeUser = userRepository.findById(data.userId())
+                    .orElseThrow(() -> new RuntimeException("Usuário responsável não encontrado"));
+        }
+
             Task task = Task.builder()
                     .code(data.code())
                     .title(data.title())
                     .description(data.description())
                     .reporter(data.reporter())
                     .assignee(data.assignee())
+                    .user(assigneeUser)
                     .build();
 
         taskRepository.save(task);
