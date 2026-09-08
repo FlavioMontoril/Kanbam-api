@@ -15,7 +15,8 @@ public record TaskResponseDTO(
         String reporter,
         String assignee,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt
+        LocalDateTime updatedAt,
+        UUID userId
 ) {
     public  TaskResponseDTO(Task task){
         this(
@@ -27,7 +28,7 @@ public record TaskResponseDTO(
                 task.getReporter(),
                 task.getAssignee(),
                 task.getCreatedAt(),
-                task.getUpdatedAt()
-        );
+                task.getUpdatedAt(),
+                task.getUser() != null ? task.getUser().getId() : null);
     }
 }
