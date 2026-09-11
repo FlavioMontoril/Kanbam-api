@@ -16,6 +16,7 @@ public record TaskResponseDTO(
         String assignee,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
+        boolean archived,
         UUID userId
 ) {
     public  TaskResponseDTO(Task task){
@@ -29,6 +30,7 @@ public record TaskResponseDTO(
                 task.getAssignee(),
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
+                task.isArchived(),
                 task.getUser() != null ? task.getUser().getId() : null);
     }
 }

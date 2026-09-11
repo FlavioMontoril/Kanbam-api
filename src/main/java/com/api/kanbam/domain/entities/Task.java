@@ -58,6 +58,10 @@ public class Task {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Column(name = "archived", nullable = false)
+    @Builder.Default
+    private boolean archived = false;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
     private User user;
