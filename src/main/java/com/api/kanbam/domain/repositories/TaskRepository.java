@@ -6,7 +6,11 @@ import com.api.kanbam.domain.enums.TaskStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -14,8 +18,41 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     Optional<TaskResponseDTO> findByCode(String code);
 
-    Page<Task> findByStatus(TaskStatus status, Pageable pageable);
+//    Page<Task> findByStatusAndArchivedFalse(TaskStatus status, Pageable pageable);
+
+    @Query("""
+        SELECT t FROM Task t 
+        WHERE t.archived = false 
+          AND (:status IS NULL OR t.status = :status) 
+          AND (
+               :search IS NULL 
+               OR :search = '' 
+               OR LOWER(t.title) LIKE LOWER(CONCAT('%', :search, '%')) 
+               OR LOWER(t.code) LIKE LOWER(CONCAT('%', :search, '%'))
+               OR LOWER(t.description) LIKE LOWER(CONCAT('%', :search, '%'))
+          )
+    """)
+    Page<Task> findAllPagedAndFiltered(
+            @Param("status") TaskStatus status,
+            @Param("search") String search,
+            Pageable pageable
+    );
+    List<Task> findByArchivedFalse();
 
     long countByStatus(TaskStatus status);
 
+//    @Query("SELECT t FROM Task t WHERE t.status = com.api.kanbam.domain.enums.TaskStatus.CANCELED AND t.archived = false")
+//    List<Task> findCanceledAndNonArchivedTasks();
+
+    // 🎯 Busca tarefas canceladas e não-arquivadas onde a última mudança para CANCELED ocorreu antes da data limite
+    @Query("""
+        SELECT DISTINCT t FROM Task t 
+        JOIN t.histories h 
+        WHERE t.status = TaskStatus.CANCELED 
+          AND t.archived = false 
+          AND h.currentStatus = TaskStatus.CANCELED 
+          AND h.movedAt <= :cutoffDate
+    """)
+    List<Task> findCanceledTasksOlderThan(@Param("cutoffDate") LocalDateTime cutoffDate);
 }
+

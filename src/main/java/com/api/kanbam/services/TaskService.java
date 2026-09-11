@@ -12,14 +12,19 @@ import com.api.kanbam.domain.repositories.TaskRepository;
 import com.api.kanbam.domain.repositories.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TaskService {
@@ -28,6 +33,7 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate; //Injeção do template WebSocket
 
     public void createTask(TaskRequestDTO data){
 
@@ -53,7 +59,7 @@ public class TaskService {
     }
 
     public List<TaskResponseDTO> findAllTasks(){
-      return taskRepository.findAll().stream().map(TaskResponseDTO::new).toList();
+      return taskRepository.findByArchivedFalse().stream().map(TaskResponseDTO::new).toList();
     }
 
     @Transactional
@@ -80,19 +86,18 @@ public class TaskService {
         return new TaskResponseDTO(updatedTask);
     }
 
-    public Pagination<TaskResponseDTO> findAllTasksPerStatus(TaskStatus status, int page, int size){
+    public Pagination<TaskResponseDTO> findAllTasksPaged(TaskStatus status, String search, int page, int size){
 
         int validPage = Math.max(page, 0);
         int validSize = Math.clamp(size, 1, MAX_SIZE);
 
         Pageable pageable = PageRequest.of(validPage, validSize);
+
+        // Tratamento básico para evitar buscas desnecessárias se a string for vazia
+        String querySearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
         Page<TaskResponseDTO> task;
 
-        if(status != null){
-            task = taskRepository.findByStatus(status, pageable).map(TaskResponseDTO::new);
-        }else{
-            task = taskRepository.findAll(pageable).map(TaskResponseDTO::new);
-        }
+        task = taskRepository.findAllPagedAndFiltered(status, querySearch, pageable).map(TaskResponseDTO::new);
 
         return new Pagination<>(
                 task.getContent(),
@@ -111,5 +116,30 @@ public class TaskService {
         long total = open + done + cancelled + in_progress + under_review;
 
         return new TasksCountDTO(open, done, cancelled, in_progress, under_review, total);
+    }
+
+    @Transactional
+    @Scheduled(fixedRate = 259200000L) //Executa a cada 3 dias (3 dias * 24h * 60m * 60s * 1000ms = 259200000 ms)
+//    @Scheduled(fixedRate = 60000) //Executa com 1 minuto
+    public void archiveOldCanceledTasks(){
+        LocalDateTime limitDate = LocalDateTime.now().minusDays(7);
+
+
+        List<Task> tasksToArchive = taskRepository.findCanceledTasksOlderThan(limitDate);
+
+        if(tasksToArchive.isEmpty()){
+            log.info("Nenhuma tarefa cancelada para arquivar.");
+            return;
+        }
+
+        tasksToArchive.forEach(task -> task.setArchived(true));
+        taskRepository.saveAll(tasksToArchive);
+
+        // 2. Coleta os IDs afetados
+        List<UUID> archivedIds = tasksToArchive.stream().map(Task::getId).toList();
+
+        // 🎯 3. Dispara o evento WebSocket contendo a lista dos IDs arquivados
+        messagingTemplate.convertAndSend("/topic/tasks-archived", archivedIds);
+        log.info("{} tarefas canceladas foram arquivadas com sucesso.", tasksToArchive.size());
     }
 }

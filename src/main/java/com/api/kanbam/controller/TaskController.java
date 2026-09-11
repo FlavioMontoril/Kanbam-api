@@ -43,10 +43,13 @@ public class TaskController {
     @GetMapping("/paged")
     public ResponseEntity<Pagination<TaskResponseDTO>> findTaskByStatus(
             @RequestParam(required = false) TaskStatus status,
+            @RequestParam(required = false) String search,
             @RequestParam() int page,
             @RequestParam(defaultValue = "10") int size
             ){
-        Pagination<TaskResponseDTO> response = taskService.findAllTasksPerStatus(status, page, size);
+        // Remove aspas adicionais caso a Query de busca venha envelopada (ex: search="T")
+        String cleanSearch = (search != null) ? search.replace("\"", "").trim() : null;
+        Pagination<TaskResponseDTO> response = taskService.findAllTasksPaged(status, cleanSearch, page, size);
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
