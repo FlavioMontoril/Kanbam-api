@@ -9,10 +9,14 @@ import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.services.TaskService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -44,12 +48,17 @@ public class TaskController {
     public ResponseEntity<Pagination<TaskResponseDTO>> findTaskByStatus(
             @RequestParam(required = false) TaskStatus status,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam() int page,
             @RequestParam(defaultValue = "10") int size
             ){
         // Remove aspas adicionais caso a Query de busca venha envelopada (ex: search="T")
         String cleanSearch = (search != null) ? search.replace("\"", "").trim() : null;
-        Pagination<TaskResponseDTO> response = taskService.findAllTasksPaged(status, cleanSearch, page, size);
+        LocalDateTime startDateTime = (startDate != null) ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = (endDate != null) ? endDate.atTime(LocalTime.MAX) : null;
+
+        Pagination<TaskResponseDTO> response = taskService.findAllTasksPaged(status, cleanSearch, startDateTime, endDateTime, page, size);
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

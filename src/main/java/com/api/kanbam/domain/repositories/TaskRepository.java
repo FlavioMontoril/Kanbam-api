@@ -31,10 +31,14 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
                OR LOWER(t.code) LIKE LOWER(CONCAT('%', :search, '%'))
                OR LOWER(t.description) LIKE LOWER(CONCAT('%', :search, '%'))
           )
+          AND (CAST(:startDate AS timestamp) IS NULL OR t.createdAt >= :startDate)
+          AND (CAST(:endDate AS timestamp) IS NULL OR t.createdAt <= :endDate)
     """)
     Page<Task> findAllPagedAndFiltered(
             @Param("status") TaskStatus status,
             @Param("search") String search,
+            @Param("startDate") LocalDateTime startDate,
+            @Param("endDate") LocalDateTime endDate,
             Pageable pageable
     );
     List<Task> findByArchivedFalse();

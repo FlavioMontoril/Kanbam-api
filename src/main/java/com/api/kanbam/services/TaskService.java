@@ -1,10 +1,7 @@
 package com.api.kanbam.services;
 
 import com.api.kanbam.domain.dtos.commons.Pagination;
-import com.api.kanbam.domain.dtos.task.TaskRequestDTO;
-import com.api.kanbam.domain.dtos.task.TaskResponseDTO;
-import com.api.kanbam.domain.dtos.task.TasksCountDTO;
-import com.api.kanbam.domain.dtos.task.UpdateTaskStatusDTO;
+import com.api.kanbam.domain.dtos.task.*;
 import com.api.kanbam.domain.entities.Task;
 import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.enums.TaskStatus;
@@ -13,6 +10,7 @@ import com.api.kanbam.domain.repositories.UserRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +19,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,6 +33,7 @@ public class TaskService {
     private final TaskHistoryService taskHistoryService;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate; //Injeção do template WebSocket
+    private final ApplicationEventPublisher eventPublisher;
 
     public void createTask(TaskRequestDTO data){
 
@@ -86,18 +86,24 @@ public class TaskService {
         return new TaskResponseDTO(updatedTask);
     }
 
-    public Pagination<TaskResponseDTO> findAllTasksPaged(TaskStatus status, String search, int page, int size){
+    public Pagination<TaskResponseDTO> findAllTasksPaged(TaskStatus status, String search, LocalDateTime startDate,LocalDateTime endDate, int page, int size){
 
         int validPage = Math.max(page, 0);
         int validSize = Math.clamp(size, 1, MAX_SIZE);
 
         Pageable pageable = PageRequest.of(validPage, validSize);
 
+        // Ajusta o início do dia (00:00:00)
+        LocalDateTime startDateTime = (startDate != null) ? startDate.toLocalDate().atStartOfDay() : null;
+
+        // Ajusta o fim do dia (23:59:59.999999999)
+        LocalDateTime endDateTime = (endDate != null) ? endDate.toLocalDate().atTime(LocalTime.MAX) : null;
+
         // Tratamento básico para evitar buscas desnecessárias se a string for vazia
         String querySearch = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
         Page<TaskResponseDTO> task;
 
-        task = taskRepository.findAllPagedAndFiltered(status, querySearch, pageable).map(TaskResponseDTO::new);
+        task = taskRepository.findAllPagedAndFiltered(status, querySearch, startDateTime, endDateTime, pageable).map(TaskResponseDTO::new);
 
         return new Pagination<>(
                 task.getContent(),
@@ -119,11 +125,11 @@ public class TaskService {
     }
 
     @Transactional
-    @Scheduled(fixedRate = 259200000L) //Executa a cada 3 dias (3 dias * 24h * 60m * 60s * 1000ms = 259200000 ms)
-//    @Scheduled(fixedRate = 60000) //Executa com 1 minuto
+//    @Scheduled(fixedRate = 259200000L) //Executa a cada 3 dias (3 dias * 24h * 60m * 60s * 1000ms = 259200000 ms)
+    @Scheduled(fixedRate = 60000) //Executa com 1 minuto
     public void archiveOldCanceledTasks(){
-        LocalDateTime limitDate = LocalDateTime.now().minusDays(7);
-
+//        LocalDateTime limitDate = LocalDateTime.now().minusDays(7);
+        LocalDateTime limitDate = LocalDateTime.now().minusMinutes(1);
 
         List<Task> tasksToArchive = taskRepository.findCanceledTasksOlderThan(limitDate);
 
@@ -135,11 +141,11 @@ public class TaskService {
         tasksToArchive.forEach(task -> task.setArchived(true));
         taskRepository.saveAll(tasksToArchive);
 
-        // 2. Coleta os IDs afetados
-        List<UUID> archivedIds = tasksToArchive.stream().map(Task::getId).toList();
+        //Coleta os IDs afetados
+        List<TaskResponseDTO> archivedTasks = tasksToArchive.stream().map(TaskResponseDTO::new).toList();
 
-        // 🎯 3. Dispara o evento WebSocket contendo a lista dos IDs arquivados
-        messagingTemplate.convertAndSend("/topic/tasks-archived", archivedIds);
+        //Dispara o evento WebSocket contendo a lista dos IDs arquivados
+        eventPublisher.publishEvent(new TasksArchivedEventDTO(archivedTasks));
         log.info("{} tarefas canceladas foram arquivadas com sucesso.", tasksToArchive.size());
     }
 }
