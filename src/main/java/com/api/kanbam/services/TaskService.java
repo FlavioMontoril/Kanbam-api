@@ -14,7 +14,6 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -32,9 +31,9 @@ public class TaskService {
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
     private final UserRepository userRepository;
-    private final SimpMessagingTemplate messagingTemplate; //Injeção do template WebSocket
     private final ApplicationEventPublisher eventPublisher;
 
+    @Transactional
     public void createTask(TaskRequestDTO data){
 
         taskRepository.findByCode(data.code()).ifPresent(hasTask -> {throw new RuntimeException("Existe tarefa cadastrada com este código");
@@ -55,7 +54,12 @@ public class TaskService {
                     .user(assigneeUser)
                     .build();
 
-        taskRepository.save(task);
+        Task newTask = taskRepository.saveAndFlush(task);
+
+        TaskResponseDTO createdTask = new TaskResponseDTO(newTask);
+
+        eventPublisher.publishEvent(new TaskCreatedEventDTO(createdTask));
+        log.info("{} Tarefa criada com sucesso.", createdTask);
     }
 
     public List<TaskResponseDTO> findAllTasks(){
@@ -79,11 +83,17 @@ public class TaskService {
 
         task.setStatus(newStatus);
 
-        Task updatedTask = taskRepository.save(task);
+        Task updatedStatus = taskRepository.save(task);
 
-        taskHistoryService.recordStatusChange(updatedTask, previousStatus, newStatus);
+        taskHistoryService.recordStatusChange(updatedStatus, previousStatus, newStatus);
 
-        return new TaskResponseDTO(updatedTask);
+
+        TaskResponseDTO changeStatus = new TaskResponseDTO(updatedStatus);
+        eventPublisher.publishEvent(new TaskChangeStatusDTO(changeStatus));
+        log.info("{} Atualizado status com sucesso.", changeStatus);
+
+
+        return  changeStatus;
     }
 
     public Pagination<TaskResponseDTO> findAllTasksPaged(TaskStatus status, String search, LocalDateTime startDate,LocalDateTime endDate, int page, int size){
@@ -141,7 +151,7 @@ public class TaskService {
         tasksToArchive.forEach(task -> task.setArchived(true));
         taskRepository.saveAll(tasksToArchive);
 
-        //Coleta os IDs afetados
+        //Coleta a Task arquivada
         List<TaskResponseDTO> archivedTasks = tasksToArchive.stream().map(TaskResponseDTO::new).toList();
 
         //Dispara o evento WebSocket contendo a lista dos IDs arquivados
