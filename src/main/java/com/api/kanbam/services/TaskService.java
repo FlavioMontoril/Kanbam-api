@@ -7,7 +7,6 @@ import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
 import com.api.kanbam.domain.repositories.UserRepository;
-import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
@@ -16,6 +15,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -157,5 +157,10 @@ public class TaskService {
         //Dispara o evento WebSocket contendo a lista dos IDs arquivados
         eventPublisher.publishEvent(new TasksArchivedEventDTO(archivedTasks));
         log.info("{} tarefas canceladas foram arquivadas com sucesso.", tasksToArchive.size());
+    }
+
+    @Transactional(readOnly = true)
+    public TaskMetricsDTO getCurrentYearTaskMetrics() {
+        return taskRepository.getTaskMetricsForCurrentYear();
     }
 }

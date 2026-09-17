@@ -1,5 +1,6 @@
 package com.api.kanbam.domain.repositories;
 
+import com.api.kanbam.domain.dtos.task.TaskMetricsDTO;
 import com.api.kanbam.domain.dtos.task.TaskResponseDTO;
 import com.api.kanbam.domain.entities.Task;
 import com.api.kanbam.domain.enums.TaskStatus;
@@ -58,5 +59,17 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
           AND h.movedAt <= :cutoffDate
     """)
     List<Task> findCanceledTasksOlderThan(@Param("cutoffDate") LocalDateTime cutoffDate);
+
+    @Query("""
+        SELECT new com.api.kanbam.domain.dtos.task.TaskMetricsDTO(
+            COUNT(t),
+            SUM(CASE WHEN t.status = com.api.kanbam.domain.enums.TaskStatus.OPEN THEN 1L ELSE 0L END),
+            SUM(CASE WHEN t.status = com.api.kanbam.domain.enums.TaskStatus.DONE THEN 1L ELSE 0L END),
+            SUM(CASE WHEN t.status = com.api.kanbam.domain.enums.TaskStatus.CANCELED THEN 1L ELSE 0L END)
+        )
+        FROM Task t
+        WHERE YEAR(t.createdAt) = YEAR(CURRENT_DATE)
+    """)
+    TaskMetricsDTO getTaskMetricsForCurrentYear();
 }
 
