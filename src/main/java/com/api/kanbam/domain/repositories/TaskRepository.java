@@ -69,6 +69,8 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
         )
         FROM Task t
         WHERE YEAR(t.createdAt) = YEAR(CURRENT_DATE)
+        GROUP BY MONTH(t.createdAt)
+        ORDER BY MONTH(t.createdAt) ASC
     """)
     TaskMetricsDTO getTaskMetricsForCurrentYear();
 }
