@@ -62,6 +62,7 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
 
     @Query("""
         SELECT new com.api.kanbam.domain.dtos.task.TaskMetricsDTO(
+            MONTH(t.createdAt),
             COUNT(t),
             SUM(CASE WHEN t.status = com.api.kanbam.domain.enums.TaskStatus.OPEN THEN 1L ELSE 0L END),
             SUM(CASE WHEN t.status = com.api.kanbam.domain.enums.TaskStatus.DONE THEN 1L ELSE 0L END),
@@ -72,6 +73,6 @@ public interface TaskRepository extends JpaRepository<Task, UUID> {
         GROUP BY MONTH(t.createdAt)
         ORDER BY MONTH(t.createdAt) ASC
     """)
-    TaskMetricsDTO getTaskMetricsForCurrentYear();
+    List<TaskMetricsDTO> getTaskMetricsForCurrentYear();
 }
 

@@ -79,8 +79,9 @@ public class TaskController {
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
-    public ResponseEntity<TaskMetricsDTO> fidMetrics() {
-        TaskMetricsDTO metrics = taskService.getCurrentYearTaskMetrics();
+    @GetMapping("/metrics")
+    public ResponseEntity<List<TaskMetricsDTO>> fidMetrics() {
+        List<TaskMetricsDTO> metrics = taskService.getCurrentYearTaskMetrics();
         return ResponseEntity.status(HttpStatus.OK).body(metrics);
     }
 }

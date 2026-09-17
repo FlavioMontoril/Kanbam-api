@@ -160,7 +160,7 @@ public class TaskService {
     }
 
     @Transactional(readOnly = true)
-    public TaskMetricsDTO getCurrentYearTaskMetrics() {
+    public List<TaskMetricsDTO> getCurrentYearTaskMetrics() {
         return taskRepository.getTaskMetricsForCurrentYear();
     }
 }
