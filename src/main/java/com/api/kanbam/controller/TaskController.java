@@ -1,6 +1,7 @@
 package com.api.kanbam.controller;
 
 import com.api.kanbam.domain.dtos.commons.Pagination;
+import com.api.kanbam.domain.dtos.task.TaskMetricsDTO;
 import com.api.kanbam.domain.dtos.task.TaskRequestDTO;
 import com.api.kanbam.domain.dtos.task.TaskResponseDTO;
 import com.api.kanbam.domain.dtos.task.TasksCountDTO;
@@ -76,5 +77,10 @@ public class TaskController {
             return ResponseEntity.status(HttpStatus.CONFLICT).build();
         }
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    public ResponseEntity<TaskMetricsDTO> fidMetrics() {
+        TaskMetricsDTO metrics = taskService.getCurrentYearTaskMetrics();
+        return ResponseEntity.status(HttpStatus.OK).body(metrics);
     }
 }
