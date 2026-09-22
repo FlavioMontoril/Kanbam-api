@@ -31,6 +31,6 @@ public record TaskResponseDTO(
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
                 task.isArchived(),
-                task.getUser() != null ? task.getUser().getId() : null);
+                task.getUserId() != null ? task.getUserId() : null);
     }
 }
