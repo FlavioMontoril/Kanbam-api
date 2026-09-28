@@ -1,5 +1,6 @@
 package com.api.kanbam.infra.security;
 
+import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -37,6 +38,8 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera Pre-flight CORS explicitamente
+                        .requestMatchers("/ws/**", "/ws").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/task/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/v1/task/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
@@ -47,13 +50,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-    
-        // Define as origens permitidas vindas do application.properties
-        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
+
+// Usa setAllowedOriginPatterns em vez de setAllowedOrigins
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .toList();
+
+// setAllowedOriginPatterns aceita tanto wildcards de dev quanto domínios exatos de prod
+        configuration.setAllowedOriginPatterns(origins);
+        
+//        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
 
         // Métodos HTTP permitidos
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-
         // Permite o envio de cabeçalhos comuns (como Authorization e Content-Type)
         configuration.setAllowedHeaders(List.of("*"));
 
