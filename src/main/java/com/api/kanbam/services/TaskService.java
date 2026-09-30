@@ -7,6 +7,7 @@ import com.api.kanbam.domain.entities.Task;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
 //import com.api.kanbam.domain.repositories.UserRepository;
+import com.api.kanbam.domain.repositories.events.UserLocalRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +40,7 @@ public class TaskService {
     private static final int MAX_SIZE = 20;
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
-//    private final UserRepository userRepository;
+    private final UserLocalRepository userLocalRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final RestClient restClient;
     private final HttpServletRequest currentRequest;
@@ -50,28 +51,11 @@ public class TaskService {
         taskRepository.findByCode(data.code()).ifPresent(hasTask -> {throw new RuntimeException("Existe tarefa cadastrada com este código");
         });
 
-//        User assigneeUser = null;
-        if (data.userId() != null ) {
-//            assigneeUser = userRepository.findById(data.userId())
-//                    .orElseThrow(() -> new RuntimeException("Usuário responsável não encontrado"));
-
-            // 1. Extrai o cabeçalho "Authorization" da requisição do React
-            String authHeader = currentRequest.getHeader(HttpHeaders.AUTHORIZATION);
-
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token de autenticação não fornecido.");
-            }
-
-            try {
-                restClient.get()
-                        .uri(authServerUrl + "/api/users/{id}", data.userId())
-                        .header(HttpHeaders.AUTHORIZATION, authHeader) // <--- Repassa o token aqui
-                        .retrieve()
-                        .toBodilessEntity(); // Apenas verifica se retorna 200 OK
-            } catch (HttpClientErrorException.NotFound e) {
-                throw new RuntimeException("Usuário responsável (assignee) não encontrado!");
-            }catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden e) {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Token inválido ou expirado ao consultar serviço de usuários.");
+        // Valida a existência do usuário diretamente na tabela espelho local (users_local)
+        if (data.userId() != null) {
+            boolean userExists = userLocalRepository.existsById(data.userId());
+            if (!userExists) {
+                throw new RuntimeException("Usuário responsável (assignee) não encontrado na base local!");
             }
         }
 
