@@ -3,19 +3,26 @@ package com.api.kanbam.services;
 import com.api.kanbam.domain.dtos.commons.Pagination;
 import com.api.kanbam.domain.dtos.task.*;
 import com.api.kanbam.domain.entities.Task;
-import com.api.kanbam.domain.entities.User;
+//import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
-import com.api.kanbam.domain.repositories.UserRepository;
+//import com.api.kanbam.domain.repositories.UserRepository;
+import com.api.kanbam.domain.repositories.events.UserLocalRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -27,11 +34,16 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TaskService {
 
+    @org.springframework.beans.factory.annotation.Value("${auth.server.url:http://localhost:8081}")
+    private String authServerUrl;
+
     private static final int MAX_SIZE = 20;
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
-    private final UserRepository userRepository;
+    private final UserLocalRepository userLocalRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final RestClient restClient;
+    private final HttpServletRequest currentRequest;
 
     @Transactional
     public void createTask(TaskRequestDTO data){
@@ -39,10 +51,12 @@ public class TaskService {
         taskRepository.findByCode(data.code()).ifPresent(hasTask -> {throw new RuntimeException("Existe tarefa cadastrada com este código");
         });
 
-        User assigneeUser = null;
-        if (data.userId() != null ) {
-            assigneeUser = userRepository.findById(data.userId())
-                    .orElseThrow(() -> new RuntimeException("Usuário responsável não encontrado"));
+        // Valida a existência do usuário diretamente na tabela espelho local (users_local)
+        if (data.userId() != null) {
+            boolean userExists = userLocalRepository.existsById(data.userId());
+            if (!userExists) {
+                throw new RuntimeException("Usuário responsável (assignee) não encontrado na base local!");
+            }
         }
 
             Task task = Task.builder()
@@ -51,7 +65,8 @@ public class TaskService {
                     .description(data.description())
                     .reporter(data.reporter())
                     .assignee(data.assignee())
-                    .user(assigneeUser)
+                    .userId(data.userId())
+//                    .user(assigneeUser)
                     .build();
 
         Task newTask = taskRepository.saveAndFlush(task);
