@@ -59,7 +59,7 @@ Uma API RESTful de alta performance desenvolvida em **Java 21** e **Spring Boot*
 | `GET` | `/v1/task` | Retorna todas as tarefas ativas (não arquivadas) | Autenticado |
 | `GET` | `/v1/task/paged` | Listagem paginada com filtros (status, busca por texto, intervalo de datas) | Autenticado |
 | `GET` | `/v1/task/count` | Retorna o total de tarefas agrupadas por status | Autenticado |
-| `PATCH` | `/v1/task/{taskId}/status` | Altera o status de uma tarefa (`OPEN`, `IN_PROGRESS`, `UNDER_REVIEW`, `DONE`, `CANCELED`) | Autenticado |
+| `PATCH` | `/v1/task/{taskId}/status` | Altera o status de uma tarefa (`OPEN`, `IN_PROGRESS`, `UNDER_REVIEW`, `DONE`, `CANCELED`) | Autenticado (Assignee ou Reporter) |
 | `GET` | `/v1/task/metrics` | Retorna métricas consolidadas de tarefas por mês no ano corrente | Autenticado |
 
 ### Histórico de Tarefas (`/v1/tasks-histories`)

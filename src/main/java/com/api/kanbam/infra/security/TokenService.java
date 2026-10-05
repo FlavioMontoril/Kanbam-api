@@ -1,45 +1,3 @@
-//package com.api.kanbam.infra.security;
-//
-//import com.auth0.jwt.JWT;
-//import com.auth0.jwt.algorithms.Algorithm;
-//import com.auth0.jwt.exceptions.JWTVerificationException;
-//import org.springframework.beans.factory.annotation.Value;
-//import org.springframework.stereotype.Service;
-//
-//@Service
-//public class TokenService {
-//
-//    @Value("${api.security.token.secret}")
-//    private String secret;
-//
-//    public String validateToken(String token) {
-//        try {
-//            Algorithm algorithm = Algorithm.HMAC256(secret);
-//            return JWT.require(algorithm)
-//                    .withIssuer("auth-server-api") // Deve bater com o issuer da API de Auth
-//                    .build()
-//                    .verify(token)
-//                    .getSubject();
-//        } catch (JWTVerificationException exception) {
-//            return null; // Token inválido ou expirado
-//        }
-//    }
-//
-//    public String extractRole(String token) {
-//        try {
-//            Algorithm algorithm = Algorithm.HMAC256(secret);
-//            return JWT.require(algorithm)
-//                    .withIssuer("auth-server-api")
-//                    .build()
-//                    .verify(token)
-//                    .getClaim("role")
-//                    .asString();
-//        } catch (JWTVerificationException exception) {
-//            return null;
-//        }
-//    }
-//}
-
 package com.api.kanbam.infra.security;
 
 import com.auth0.jwt.JWT;
@@ -98,6 +56,20 @@ public class TokenService {
             }
 
             return null;
+        } catch (JWTVerificationException exception) {
+            return null;
+        }
+    }
+
+    public String extractUserId(String token) {
+        try {
+            Algorithm algorithm = Algorithm.HMAC256(secret); // sua variável/key de segredo
+            return JWT.require(algorithm)
+                    .withIssuer(issuer) // ajuste para o mesmo issuer do validateToken
+                    .build()
+                    .verify(token)
+                    .getClaim("id") // Nome da claim onde o ID foi gravado no JWT
+                    .asString();
         } catch (JWTVerificationException exception) {
             return null;
         }

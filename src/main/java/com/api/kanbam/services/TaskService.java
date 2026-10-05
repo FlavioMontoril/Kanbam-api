@@ -3,25 +3,20 @@ package com.api.kanbam.services;
 import com.api.kanbam.domain.dtos.commons.Pagination;
 import com.api.kanbam.domain.dtos.task.*;
 import com.api.kanbam.domain.entities.Task;
-//import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
-//import com.api.kanbam.domain.repositories.UserRepository;
 import com.api.kanbam.domain.repositories.events.UserLocalRepository;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -34,16 +29,11 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TaskService {
 
-    @org.springframework.beans.factory.annotation.Value("${auth.server.url:http://localhost:8081}")
-    private String authServerUrl;
-
     private static final int MAX_SIZE = 20;
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
     private final UserLocalRepository userLocalRepository;
     private final ApplicationEventPublisher eventPublisher;
-    private final RestClient restClient;
-    private final HttpServletRequest currentRequest;
 
     @Transactional
     public void createTask(TaskRequestDTO data){
@@ -63,10 +53,8 @@ public class TaskService {
                     .code(data.code())
                     .title(data.title())
                     .description(data.description())
-                    .reporter(data.reporter())
-                    .assignee(data.assignee())
+                    .reporterId(data.reporterId())
                     .userId(data.userId())
-//                    .user(assigneeUser)
                     .build();
 
         Task newTask = taskRepository.saveAndFlush(task);
@@ -83,7 +71,19 @@ public class TaskService {
 
     @Transactional
     public TaskResponseDTO moveTaskStatus(UUID taskId, UpdateTaskStatusDTO dto){
-        Task task = taskRepository.findById(taskId).orElseThrow(()-> new RuntimeException("Task Not Found"));
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task Not Found"));
+
+        String currentUserIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID currentUserId = UUID.fromString(currentUserIdStr);
+
+        // Validação estrita por UUID em memória
+        boolean isAssignee = task.getUserId() != null && task.getUserId().equals(currentUserId);
+        boolean isReporter = task.getReporterId() != null && task.getReporterId().equals(currentUserId);
+        // Se o reporter for um objeto User ou possuir um reporterId (UUID)
+        if (!isAssignee && !isReporter) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o responsável (assignee) ou o relator (reporter) da tarefa podem alterar seu status");
+        }
 
         TaskStatus previousStatus = task.getStatus();
         TaskStatus newStatus = dto.status();

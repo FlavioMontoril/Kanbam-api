@@ -44,11 +44,9 @@ public class Task {
     @Builder.Default
     private TaskStatus status = TaskStatus.OPEN;
 
-    @Column(name = "reporter", nullable = false, length = 100)
-    private String reporter;
-
-    @Column(name = "assignee", nullable = false, length = 100)
-    private String assignee;
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "reporter_id", nullable = false, updatable = false, length = 36)
+    private UUID reporterId;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @CreationTimestamp

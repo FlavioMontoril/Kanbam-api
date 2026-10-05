@@ -27,15 +27,16 @@ public class SecurityFilter extends OncePerRequestFilter {
         var token = recoverToken(request);
 
         if (token != null) {
+            var userId = tokenService.extractUserId(token);
             var login = tokenService.validateToken(token);
             var role = tokenService.extractRole(token);
 
-            if (login != null && role != null) {
+            if (login != null && role != null && userId != null) {
                 // Formata para garantir o prefixo "ROLE_" exigido pelo Spring Security
                 String formattedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
 
                 var authorities = List.of(new SimpleGrantedAuthority(formattedRole));
-                var authentication = new UsernamePasswordAuthenticationToken(login, null, authorities);
+                var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
@@ -45,16 +46,9 @@ public class SecurityFilter extends OncePerRequestFilter {
     }
 
     private String recoverToken(HttpServletRequest request) {
-        // Tenta pegar do Header primeiro (Padrão)
         var authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
-        }
-
-        // Se não vier no Header, tenta pegar da URL (Para o WebSocket / SockJS)
-        var tokenParam = request.getParameter("token");
-        if (tokenParam != null) {
-            return tokenParam;
         }
 
         return null;
