@@ -27,16 +27,16 @@ public class SecurityFilter extends OncePerRequestFilter {
         var token = recoverToken(request);
 
         if (token != null) {
-            var userId = tokenService.extractUserId(token);
-            var login = tokenService.validateToken(token);
-            var role = tokenService.extractRole(token);
+            // Usa o novo método centralizado que extrai as claims em uma única verificação
+            var tokenData = tokenService.extractTokenData(token);
 
-            if (login != null && role != null && userId != null) {
+            if (tokenData != null && tokenData.userId() != null && tokenData.role() != null) {
+                String role = tokenData.role();
                 // Formata para garantir o prefixo "ROLE_" exigido pelo Spring Security
                 String formattedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
 
                 var authorities = List.of(new SimpleGrantedAuthority(formattedRole));
-                var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
+                var authentication = new UsernamePasswordAuthenticationToken(tokenData.userId(), null, authorities);
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
