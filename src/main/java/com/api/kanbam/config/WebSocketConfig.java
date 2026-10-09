@@ -62,14 +62,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                     String token = extractToken(accessor);
 
                     if (token != null) {
-                        String login = tokenService.validateToken(token);
-                        String role = tokenService.extractRole(token);
+                        var tokenData = tokenService.extractTokenData(token);
 
-                        if (login != null && role != null) {
-                            String formattedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                        if (tokenData != null && tokenData.userId() != null && tokenData.role() != null) {
+                            String formattedRole = tokenData.role().startsWith("ROLE_") ? tokenData.role() : "ROLE_" + tokenData.role();
                             var authorities = List.of(new SimpleGrantedAuthority(formattedRole));
 
-                            var authentication = new UsernamePasswordAuthenticationToken(login, null, authorities);
+                            var authentication = new UsernamePasswordAuthenticationToken(tokenData.userId(), null, authorities);
 
                             // Atribui o usuário autenticado à sessão do WebSocket
                             accessor.setUser(authentication);
@@ -86,7 +85,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     private String extractToken(StompHeaderAccessor accessor) {
-        // 1. Tenta buscar no header nativo "Authorization: Bearer <token>" enviado no STOMP CONNECT
+        // 1. Tenta buscar no header nativo "Authorization: Bearer <token>" enviado no
+        // STOMP CONNECT
         String authHeader = accessor.getFirstNativeHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);

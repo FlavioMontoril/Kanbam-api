@@ -20,11 +20,14 @@ public class UserLocal {
     @Setter(AccessLevel.NONE)
     @JdbcTypeCode(SqlTypes.VARCHAR)
     @Column(name = "user_id", nullable = false, updatable = false, length = 36)
-    private UUID id;
+    private UUID userId;
 
     @Column(nullable = false)
     private String name;
 
     @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(name = "role", nullable = false, length = 10)
+    private String role; // Recebe a role vinda do evento
 }

@@ -31,9 +31,9 @@ public class UserConsumer {
             return;
         }
 
-        UserLocal user = new UserLocal(event.id(), event.name(), event.email());
+        UserLocal user = new UserLocal(event.id(), event.name(), event.email(), event.role());
         userLocalRepository.save(user);
 
-        log.info("Usuário {} sincronizado com sucesso na base de dados do Kanban!", user.getId());
+        log.info("Usuário {} sincronizado com sucesso na base de dados do Kanban!", user.getUserId());
     }
 }
