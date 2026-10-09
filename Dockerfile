@@ -13,7 +13,7 @@ WORKDIR /app
 
 RUN addgroup -S spring && adduser -S spring -G spring && chown spring:spring /app
 
-COPY --chown=spring:spring --from=build /app/target/aprendizado-0.0.1-SNAPSHOT.jar /app/app.jar
+COPY --chown=spring:spring --from=build /app/target/kanban-0.0.1-SNAPSHOT.jar /app/app.jar
 
 USER spring
 

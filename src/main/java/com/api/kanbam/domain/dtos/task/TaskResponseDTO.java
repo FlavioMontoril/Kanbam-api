@@ -12,8 +12,7 @@ public record TaskResponseDTO(
         String title,
         String description,
         TaskStatus status,
-        String reporter,
-        String assignee,
+        UUID reporterId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         boolean archived,
@@ -26,11 +25,10 @@ public record TaskResponseDTO(
                 task.getTitle(),
                 task.getDescription(),
                 task.getStatus(),
-                task.getReporter(),
-                task.getAssignee(),
+                task.getReporterId(),
                 task.getCreatedAt(),
                 task.getUpdatedAt(),
                 task.isArchived(),
-                task.getUser() != null ? task.getUser().getId() : null);
+                task.getUserId() != null ? task.getUserId() : null);
     }
 }

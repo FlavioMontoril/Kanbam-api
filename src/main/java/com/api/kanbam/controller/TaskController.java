@@ -29,7 +29,7 @@ public class TaskController {
     private final TaskService taskService;
 
     @PostMapping("/create")
-    public ResponseEntity<?> createUser(@RequestBody TaskRequestDTO data){
+    public ResponseEntity<?> createTask(@RequestBody TaskRequestDTO data){
         taskService.createTask(data);
         return ResponseEntity.status(HttpStatus.CREATED).body("Created Task Succesfully");
     }
