@@ -4,6 +4,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,6 +22,7 @@ import com.api.kanbam.services.chat.ChatRoomService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/chats/rooms")
 @RequiredArgsConstructor
@@ -32,7 +34,11 @@ public class ChatRoomController {
     public ResponseEntity<ChatRoomResponseDTO> createRoom(
             @AuthenticationPrincipal String userIdStr,
             @Valid @RequestBody CreateChatRoomDTO dto) {
-        Long currentUserId = Long.parseLong(userIdStr);
+
+        log.info("📥 [POST /api/v1/chats/rooms] Requisicao recebida do usuário: {}", userIdStr);
+        log.info("📦 Payload recebido: {}", dto);
+
+        UUID currentUserId = UUID.fromString(userIdStr);
         ChatRoomResponseDTO room = chatRoomService.createRoom(currentUserId, dto);
 
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
@@ -46,7 +52,9 @@ public class ChatRoomController {
     @GetMapping
     public ResponseEntity<List<ChatRoomResponseDTO>> getUserRooms(
             @AuthenticationPrincipal String userIdStr) {
-        Long currentUserId = Long.parseLong(userIdStr);
+
+        log.info("📥 [GET /api/v1/chats/rooms] Buscando salas do usuário: {}", userIdStr);
+        UUID currentUserId = UUID.fromString(userIdStr);
         List<ChatRoomResponseDTO> rooms = chatRoomService.getUserRooms(currentUserId);
         return ResponseEntity.ok(rooms);
     }
@@ -55,7 +63,7 @@ public class ChatRoomController {
     public ResponseEntity<ChatRoomResponseDTO> getRoomById(
             @AuthenticationPrincipal String userIdStr,
             @PathVariable UUID roomId) {
-        Long currentUserId = Long.parseLong(userIdStr);
+        UUID currentUserId = UUID.fromString(userIdStr);
         ChatRoomResponseDTO room = chatRoomService.getRoomById(roomId, currentUserId);
         return ResponseEntity.ok(room);
     }

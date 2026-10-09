@@ -10,6 +10,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
@@ -35,10 +36,11 @@ public class SecurityConfig {
         return httpSecurity
                 // Habilita o CORS usando a fonte definida no bean corsConfigurationSource()
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera Pre-flight CORS explicitamente
+                        .requestMatchers("/api/v1/chats/**").authenticated()
                         .requestMatchers("/ws/**", "/ws").permitAll()
                         .requestMatchers(HttpMethod.POST, "/v1/task/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/v1/task/**").hasRole("ADMIN")
@@ -51,23 +53,17 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-// Usa setAllowedOriginPatterns em vez de setAllowedOrigins
         List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .toList();
 
-// setAllowedOriginPatterns aceita tanto wildcards de dev quanto domínios exatos de prod
         configuration.setAllowedOriginPatterns(origins);
-        
-//        configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
-
-        // Métodos HTTP permitidos
+        //configuration.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        // Permite o envio de cabeçalhos comuns (como Authorization e Content-Type)
-        configuration.setAllowedHeaders(List.of("*"));
-
-        // Permite envio de cookies/credenciais se o front-end precisar
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "Accept"));
         configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of("Authorization"));
+        //configuration.setAllowedHeaders(List.of("*"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);

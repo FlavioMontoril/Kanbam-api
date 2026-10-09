@@ -40,7 +40,7 @@ public class Message {
     private UUID id;
 
     @Column(name = "sender_id", nullable = false)
-    private Long senderId; // ID do usuário remetente (vindo do Token/JWT)
+    private UUID senderId; // ID do usuário remetente (vindo do Token/JWT)
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;

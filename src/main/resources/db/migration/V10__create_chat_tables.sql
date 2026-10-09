@@ -9,28 +9,28 @@ CREATE TABLE chat_rooms (
 -- 2. Tabela de participantes
 CREATE TABLE chat_participants (
     id VARCHAR(36) PRIMARY KEY,
-    user_id BIGINT NOT NULL,
+    user_id UUID NOT NULL,
     role VARCHAR(20),
     joined_at TIMESTAMP,
     room_id VARCHAR(36) NOT NULL,
-    
-    CONSTRAINT fk_chat_participants_room 
-        FOREIGN KEY (room_id) 
-        REFERENCES chat_rooms (id) 
+
+    CONSTRAINT fk_chat_participants_room
+        FOREIGN KEY (room_id)
+        REFERENCES chat_rooms (id)
         ON DELETE CASCADE
 );
 
 -- 3. Tabela de mensagens
 CREATE TABLE messages (
     id VARCHAR(36) PRIMARY KEY,
-    sender_id BIGINT NOT NULL,
+    sender_id UUID NOT NULL,
     content TEXT NOT NULL,
     timestamp TIMESTAMP NOT NULL,
     room_id VARCHAR(36) NOT NULL,
-    
-    CONSTRAINT fk_messages_room 
-        FOREIGN KEY (room_id) 
-        REFERENCES chat_rooms (id) 
+
+    CONSTRAINT fk_messages_room
+        FOREIGN KEY (room_id)
+        REFERENCES chat_rooms (id)
         ON DELETE CASCADE
 );
 

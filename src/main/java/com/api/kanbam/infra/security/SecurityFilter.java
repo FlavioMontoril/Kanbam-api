@@ -1,5 +1,6 @@
 package com.api.kanbam.infra.security;
 
+import com.api.kanbam.domain.dtos.chat.TokenDataDTO;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,12 +29,11 @@ public class SecurityFilter extends OncePerRequestFilter {
 
         if (token != null) {
             // Usa o novo método centralizado que extrai as claims em uma única verificação
-            var tokenData = tokenService.extractTokenData(token);
+            TokenDataDTO tokenData = tokenService.extractTokenData(token);
 
-            if (tokenData != null && tokenData.userId() != null && tokenData.role() != null) {
-                String role = tokenData.role();
+            if (tokenData != null) {
                 // Formata para garantir o prefixo "ROLE_" exigido pelo Spring Security
-                String formattedRole = role.startsWith("ROLE_") ? role : "ROLE_" + role;
+                String formattedRole = tokenData.role().startsWith("ROLE_") ? tokenData.role() : "ROLE_" + tokenData.role();
 
                 var authorities = List.of(new SimpleGrantedAuthority(formattedRole));
                 var authentication = new UsernamePasswordAuthenticationToken(tokenData.userId(), null, authorities);

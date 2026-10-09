@@ -5,6 +5,8 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.api.kanbam.domain.entities.chat.ChatParticipant;
@@ -16,8 +18,11 @@ public interface ChatParticipantRepository extends JpaRepository<ChatParticipant
     List<ChatParticipant> findByRoomId(UUID roomId);
 
     // Verifica se um usuário faz parte de uma sala específica (ideal para validação de acesso)
-    boolean existsByRoomIdAndUserId(UUID roomId, Long userId);
+    boolean existsByRoomIdAndUserId(UUID roomId, UUID userId);
 
     // Busca o vínculo de um participante específico na sala
-    Optional<ChatParticipant> findByRoomIdAndUserId(UUID roomId, Long userId);
+    Optional<ChatParticipant> findByRoomIdAndUserId(UUID roomId, UUID userId);
+
+    @Query("SELECT p.userId FROM ChatParticipant p WHERE p.room.id = :roomId")
+    List<UUID> findUserIdsByRoomId(@Param("roomId") UUID roomId);
 }

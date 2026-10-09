@@ -3,6 +3,7 @@ package com.api.kanbam.controller.chat;
 import java.net.URI;
 import java.util.UUID;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -24,6 +25,7 @@ import com.api.kanbam.services.chat.MessageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/chats")
 @RequiredArgsConstructor
@@ -35,15 +37,25 @@ public class MessageController {
     public ResponseEntity<MessageResponseDTO> sendMessage(
             @AuthenticationPrincipal String userIdStr,
             @Valid @RequestBody SendMessageDTO dto) {
-        Long currentUserId = Long.parseLong(userIdStr);
-        MessageResponseDTO message = messageService.sendMessage(currentUserId, dto);
 
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/{id}")
-                .buildAndExpand(message.id())
-                .toUri();
+        log.info("📩 [MessageController] Recebida requisicao POST /messages do usuario: {} com DTO: {}", userIdStr, dto);
 
-        return ResponseEntity.created(location).body(message);
+        try {
+            UUID currentUserId = UUID.fromString(userIdStr);
+            MessageResponseDTO message = messageService.sendMessage(currentUserId, dto);
+
+            URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                    .path("/{id}")
+                    .buildAndExpand(message.id())
+                    .toUri();
+
+            log.info("✅ [MessageController] Mensagem criada com sucesso! ID: {}", message.id());
+            return ResponseEntity.created(location).body(message);
+
+        } catch (Exception e) {
+            log.error("💥 [MessageController] Erro ao enviar mensagem via REST: ", e);
+            throw e;
+        }
     }
 
     @GetMapping("/rooms/{roomId}/messages")
@@ -52,8 +64,20 @@ public class MessageController {
             @PathVariable UUID roomId,
             @PageableDefault(size = 30, sort = "timestamp", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        Long currentUserId = Long.parseLong(userIdStr);
-        Page<MessageResponseDTO> history = messageService.getRoomMessagesHistory(roomId, currentUserId, pageable);
-        return ResponseEntity.ok(history);
+        log.info("🔍 [MessageController] Buscando historico GET /rooms/{}/messages para usuario: {}", roomId, userIdStr);
+
+        try {
+            UUID currentUserId = UUID.fromString(userIdStr);
+            Page<MessageResponseDTO> history = messageService.getRoomMessagesHistory(roomId, currentUserId, pageable);
+
+            log.info("✅ [MessageController] Historico retornado com sucesso! Total elementos: {}, Pagina atual: {}",
+                    history.getTotalElements(), history.getNumber());
+
+            return ResponseEntity.ok(history);
+
+        } catch (Exception e) {
+            log.error("💥 [MessageController] Erro ao buscar historico de mensagens: ", e);
+            throw e;
+        }
     }
 }

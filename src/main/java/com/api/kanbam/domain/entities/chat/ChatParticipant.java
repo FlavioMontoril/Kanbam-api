@@ -44,7 +44,7 @@ public class ChatParticipant {
     private UUID id;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId; // ID do usuário gerenciado pela API de Autenticação
+    private UUID userId; // ID do usuário gerenciado pela API de Autenticação
 
     @Enumerated(EnumType.STRING)
     private RoleMember role; // ADMIN, MEMBER

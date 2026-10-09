@@ -8,7 +8,7 @@ import com.api.kanbam.domain.enums.RoleMember;
 
 public record ChatParticipantResponseDTO(
     UUID id,
-    Long userId,
+    UUID userId,
     RoleMember role,
     LocalDateTime joinedAt
 ) {

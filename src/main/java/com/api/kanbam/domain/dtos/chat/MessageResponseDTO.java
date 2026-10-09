@@ -8,7 +8,7 @@ import com.api.kanbam.domain.entities.chat.Message;
 public record MessageResponseDTO(
     UUID id,
     UUID roomId,
-    Long senderId,
+    UUID senderId,
     String content,
     LocalDateTime timestamp
 ) {
