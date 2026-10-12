@@ -49,6 +49,10 @@ public class TaskService {
             }
         }
 
+        // 1. Obtém o usuário autenticado que está criando a tarefa
+        String currentUserIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID triggeredId = UUID.fromString(currentUserIdStr);
+
             Task task = Task.builder()
                     .code(data.code())
                     .title(data.title())
@@ -61,7 +65,7 @@ public class TaskService {
 
         TaskResponseDTO createdTask = new TaskResponseDTO(newTask);
 
-        eventPublisher.publishEvent(new TaskCreatedEventDTO(createdTask));
+        eventPublisher.publishEvent(new TaskCreatedEventDTO(createdTask, triggeredId));
         log.info("{} Tarefa criada com sucesso.", createdTask);
     }
 
@@ -104,7 +108,7 @@ public class TaskService {
 
 
         TaskResponseDTO changeStatus = new TaskResponseDTO(updatedStatus);
-        eventPublisher.publishEvent(new TaskChangeStatusDTO(changeStatus));
+        eventPublisher.publishEvent(new TaskChangeStatusDTO(changeStatus, currentUserId));
         log.info("{} Atualizado status com sucesso.", changeStatus);
 
 
@@ -170,7 +174,7 @@ public class TaskService {
         List<TaskResponseDTO> archivedTasks = tasksToArchive.stream().map(TaskResponseDTO::new).toList();
 
         //Dispara o evento WebSocket contendo a lista dos IDs arquivados
-        eventPublisher.publishEvent(new TasksArchivedEventDTO(archivedTasks));
+        eventPublisher.publishEvent(new TasksArchivedEventDTO(archivedTasks, null   ));
         log.info("{} tarefas canceladas foram arquivadas com sucesso.", tasksToArchive.size());
     }
 

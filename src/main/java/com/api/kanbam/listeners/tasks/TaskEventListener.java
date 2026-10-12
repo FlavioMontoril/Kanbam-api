@@ -19,19 +19,19 @@ public class TaskEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTasksArchivedEvent(TasksArchivedEventDTO event) {
-        messagingTemplate.convertAndSend("/topic/tasks-archived", event.archivedTasks());
-        log.info("Evento WebSocket enviado com sucesso para os IDs arquivados. {}", event.archivedTasks());
+        messagingTemplate.convertAndSend("/topic/tasks-archived", event);
+        log.info("Evento WebSocket enviado com sucesso para os IDs arquivados. {}", event);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskCreatedEvent(TaskCreatedEventDTO event) {
-        messagingTemplate.convertAndSend("/topic/task-created", event.createdTask());
-        log.info("[Evento WebSocket enviado]: Tarefa criada {}", event.createdTask());
+        messagingTemplate.convertAndSend("/topic/task-created", event);
+        log.info("[Evento WebSocket enviado]: Tarefa criada {}", event);
     }
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void handleTaskStatusChangedEvent(TaskChangeStatusDTO event) {
-        messagingTemplate.convertAndSend("/topic/task-status-changed", event.changeStatus());
-        log.info("Evento WebSocket enviado: Status alterado {}", event.changeStatus());
+        messagingTemplate.convertAndSend("/topic/task-status-changed", event);
+        log.info("Evento WebSocket enviado: Status alterado {}", event);
     }
 }
