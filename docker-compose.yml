@@ -48,4 +48,5 @@ networks:
   kanban-server-network:
     driver: bridge
   apache-network:
-    external: true # Diz ao Docker para REUTILIZAR a rede existente do auth-server
+    external: true # Diz ao Docker para REUTILIZAR a rede existente do APACHE KAFKA
+    name: apache-network
