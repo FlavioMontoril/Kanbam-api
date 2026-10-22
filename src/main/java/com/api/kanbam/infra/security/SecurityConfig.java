@@ -40,10 +40,10 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera Pre-flight CORS explicitamente
-                        .requestMatchers("/api/v1/chats/**").authenticated()
-                        .requestMatchers("/ws/**", "/ws").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/v1/task/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/v1/task/**").hasRole("ADMIN")
+                        .requestMatchers("/api-kanban/v1/chats/**").authenticated()
+                        .requestMatchers("/ws-kanban/**", "/ws-kanban").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api-kanban/task/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api-kanban/task/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

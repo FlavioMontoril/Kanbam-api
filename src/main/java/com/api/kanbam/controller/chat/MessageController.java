@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/chats")
+@RequestMapping("/api-kanban/v1/chats")
 @RequiredArgsConstructor
 public class MessageController {
 

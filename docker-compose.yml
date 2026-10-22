@@ -46,6 +46,7 @@ volumes:
 
 networks:
   kanban-server-network:
+    name: kanban-server-network
     driver: bridge
   apache-network:
     external: true # Diz ao Docker para REUTILIZAR a rede existente do APACHE KAFKA

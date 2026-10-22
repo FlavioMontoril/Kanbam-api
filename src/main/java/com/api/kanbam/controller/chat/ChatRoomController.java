@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/chats/rooms")
+@RequestMapping("/api-kanban/v1/chats/rooms")
 @RequiredArgsConstructor
 public class ChatRoomController {
 
@@ -35,7 +35,7 @@ public class ChatRoomController {
             @AuthenticationPrincipal String userIdStr,
             @Valid @RequestBody CreateChatRoomDTO dto) {
 
-        log.info("📥 [POST /api/v1/chats/rooms] Requisicao recebida do usuário: {}", userIdStr);
+        log.info("📥 [POST /api-kanban/v1/chats/rooms] Requisicao recebida do usuário: {}", userIdStr);
         log.info("📦 Payload recebido: {}", dto);
 
         UUID currentUserId = UUID.fromString(userIdStr);
@@ -53,7 +53,7 @@ public class ChatRoomController {
     public ResponseEntity<List<ChatRoomResponseDTO>> getUserRooms(
             @AuthenticationPrincipal String userIdStr) {
 
-        log.info("📥 [GET /api/v1/chats/rooms] Buscando salas do usuário: {}", userIdStr);
+        log.info("📥 [GET /api-kanban/v1/chats/rooms] Buscando salas do usuário: {}", userIdStr);
         UUID currentUserId = UUID.fromString(userIdStr);
         List<ChatRoomResponseDTO> rooms = chatRoomService.getUserRooms(currentUserId);
         return ResponseEntity.ok(rooms);

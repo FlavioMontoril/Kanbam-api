@@ -1,5 +1,6 @@
 package com.api.kanbam.config;
 
+import com.api.kanbam.infra.security.JwtHandshakeInterceptor;
 import com.api.kanbam.infra.security.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +21,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSocketMessageBroker
@@ -34,9 +36,13 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         // Habilita o prefixo de tópico para o servidor enviar mensagens ao client
-        config.enableSimpleBroker("/topic");
+        // Habilita os dois prefixos: /topic (broadcast) e /queue (mensagens individuais/privadas)
+        config.enableSimpleBroker("/topic", "/queue");
         // Prefixo para mensagens enviadas do client para o servidor (se necessário)
         config.setApplicationDestinationPrefixes("/app");
+
+        // Define o prefixo para destinos de usuários específicos (usado pelo convertAndSendToUser)
+        config.setUserDestinationPrefix("/user");
     }
 
     @Override
@@ -45,8 +51,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                 .map(String::trim)
                 .toArray(String[]::new);
 
-        registry.addEndpoint("/ws")
+        registry.addEndpoint("/ws-kanban")
                 .setAllowedOriginPatterns(origins)
+                .addInterceptors(new JwtHandshakeInterceptor()) //Intercepta o Cookie HttpOnly no Handshake HTTP
                 .withSockJS();
     }
 
@@ -85,14 +92,22 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     }
 
     private String extractToken(StompHeaderAccessor accessor) {
-        // 1. Tenta buscar no header nativo "Authorization: Bearer <token>" enviado no
-        // STOMP CONNECT
+        // Tenta recuperar o token extraído do Cookie HttpOnly durante o Handshake
+        Map<String, Object> sessionAttributes = accessor.getSessionAttributes();
+        if (sessionAttributes != null && sessionAttributes.containsKey("token")) {
+            String token = (String) sessionAttributes.get("token");
+            if (token != null && !token.isBlank()) {
+                return token;
+            }
+        }
+
+        // Fallback: Cabeçalho nativo "Authorization: Bearer <token>"
         String authHeader = accessor.getFirstNativeHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             return authHeader.substring(7);
         }
 
-        // 2. Fallback: Busca se o token veio como parâmetro no header nativo "token"
+        // Fallback: Cabeçalho nativo "token"
         String tokenParam = accessor.getFirstNativeHeader("token");
         if (tokenParam != null && !tokenParam.isBlank()) {
             return tokenParam;

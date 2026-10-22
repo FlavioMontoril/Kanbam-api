@@ -23,7 +23,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/task")
+@RequestMapping("/api-kanban/task")
 public class TaskController {
 
     private final TaskService taskService;
