@@ -3,19 +3,21 @@ package com.api.kanbam.services;
 import com.api.kanbam.domain.dtos.commons.Pagination;
 import com.api.kanbam.domain.dtos.task.*;
 import com.api.kanbam.domain.entities.Task;
-import com.api.kanbam.domain.entities.User;
 import com.api.kanbam.domain.enums.TaskStatus;
 import com.api.kanbam.domain.repositories.TaskRepository;
-import com.api.kanbam.domain.repositories.UserRepository;
+import com.api.kanbam.domain.repositories.events.UserLocalRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -30,7 +32,7 @@ public class TaskService {
     private static final int MAX_SIZE = 20;
     private final TaskRepository taskRepository;
     private final TaskHistoryService taskHistoryService;
-    private final UserRepository userRepository;
+    private final UserLocalRepository userLocalRepository;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
@@ -39,26 +41,31 @@ public class TaskService {
         taskRepository.findByCode(data.code()).ifPresent(hasTask -> {throw new RuntimeException("Existe tarefa cadastrada com este código");
         });
 
-        User assigneeUser = null;
-        if (data.userId() != null ) {
-            assigneeUser = userRepository.findById(data.userId())
-                    .orElseThrow(() -> new RuntimeException("Usuário responsável não encontrado"));
+        // Valida a existência do usuário diretamente na tabela espelho local (users_local)
+        if (data.userId() != null) {
+            boolean userExists = userLocalRepository.existsById(data.userId());
+            if (!userExists) {
+                throw new RuntimeException("Usuário responsável (assignee) não encontrado na base local!");
+            }
         }
+
+        // 1. Obtém o usuário autenticado que está criando a tarefa
+        String currentUserIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID triggeredId = UUID.fromString(currentUserIdStr);
 
             Task task = Task.builder()
                     .code(data.code())
                     .title(data.title())
                     .description(data.description())
-                    .reporter(data.reporter())
-                    .assignee(data.assignee())
-                    .user(assigneeUser)
+                    .reporterId(data.reporterId())
+                    .userId(data.userId())
                     .build();
 
         Task newTask = taskRepository.saveAndFlush(task);
 
         TaskResponseDTO createdTask = new TaskResponseDTO(newTask);
 
-        eventPublisher.publishEvent(new TaskCreatedEventDTO(createdTask));
+        eventPublisher.publishEvent(new TaskCreatedEventDTO(createdTask, triggeredId));
         log.info("{} Tarefa criada com sucesso.", createdTask);
     }
 
@@ -68,7 +75,19 @@ public class TaskService {
 
     @Transactional
     public TaskResponseDTO moveTaskStatus(UUID taskId, UpdateTaskStatusDTO dto){
-        Task task = taskRepository.findById(taskId).orElseThrow(()-> new RuntimeException("Task Not Found"));
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Task Not Found"));
+
+        String currentUserIdStr = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID currentUserId = UUID.fromString(currentUserIdStr);
+
+        // Validação estrita por UUID em memória
+        boolean isAssignee = task.getUserId() != null && task.getUserId().equals(currentUserId);
+        boolean isReporter = task.getReporterId() != null && task.getReporterId().equals(currentUserId);
+        // Se o reporter for um objeto User ou possuir um reporterId (UUID)
+        if (!isAssignee && !isReporter) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Apenas o responsável (assignee) ou o relator (reporter) da tarefa podem alterar seu status");
+        }
 
         TaskStatus previousStatus = task.getStatus();
         TaskStatus newStatus = dto.status();
@@ -89,7 +108,7 @@ public class TaskService {
 
 
         TaskResponseDTO changeStatus = new TaskResponseDTO(updatedStatus);
-        eventPublisher.publishEvent(new TaskChangeStatusDTO(changeStatus));
+        eventPublisher.publishEvent(new TaskChangeStatusDTO(changeStatus, currentUserId));
         log.info("{} Atualizado status com sucesso.", changeStatus);
 
 
@@ -155,7 +174,7 @@ public class TaskService {
         List<TaskResponseDTO> archivedTasks = tasksToArchive.stream().map(TaskResponseDTO::new).toList();
 
         //Dispara o evento WebSocket contendo a lista dos IDs arquivados
-        eventPublisher.publishEvent(new TasksArchivedEventDTO(archivedTasks));
+        eventPublisher.publishEvent(new TasksArchivedEventDTO(archivedTasks, null   ));
         log.info("{} tarefas canceladas foram arquivadas com sucesso.", tasksToArchive.size());
     }
 
