@@ -42,7 +42,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Libera Pre-flight CORS explicitamente
                         .requestMatchers("/api-kanban/v1/chats/**").authenticated()
                         .requestMatchers("/ws-kanban/**", "/ws-kanban").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api-kanban/task/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api-kanban/task/**").hasAnyRole("ADMIN", "MASTER")
                         .requestMatchers(HttpMethod.DELETE, "/api-kanban/task/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .addFilterBefore(securityFilter, UsernamePasswordAuthenticationFilter.class)
