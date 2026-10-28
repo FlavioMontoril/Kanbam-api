@@ -1,4 +1,6 @@
 package com.api.kanbam.domain.dtos.task;
 
-public record TaskChangeStatusDTO(TaskResponseDTO changeStatus) {
+import java.util.UUID;
+
+public record TaskChangeStatusDTO(TaskResponseDTO changeStatus, UUID triggeredId) {
 }

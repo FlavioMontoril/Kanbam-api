@@ -12,7 +12,7 @@ import java.util.UUID;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/tasks-histories")
+@RequestMapping("/api-kanban/tasks-histories")
 public class TaskHistoryController {
 
     private final TaskHistoryService taskHistoryService;

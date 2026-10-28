@@ -1,76 +1,147 @@
 # Kanban API
 
-Esta é uma API RESTful desenvolvida em Java com Spring Boot para o gerenciamento de um quadro Kanban. A aplicação inclui funcionalidades para gerenciamento de tarefas, histórico de movimentações, comunicação em tempo real utilizando WebSockets e arquivemento automatico de tarefas canceldas há um x tempo definido pelo usuário.
+Uma API RESTful de alta performance desenvolvida em **Java 21** e **Spring Boot** para o gerenciamento de quadros Kanban. A aplicação faz parte de uma arquitetura orientada a eventos (Event-Driven Architecture) integrada a um microserviço de autenticação (`auth-server`), contando com segurança via **JWT**, sincronização em tempo real via **WebSockets (STOMP)**, consumo de eventos de usuários via **Apache Kafka** e rotinas automatizadas de arquivamento de tarefas.
+
+---
 
 ## Tecnologias Utilizadas
 
-- **Java 21**
-- **Spring Boot** (WebMVC, Data JPA, Validation, WebSocket)
-- **PostgreSQL 16** (Banco de Dados Relacional)
-- **Flyway** (Migração de Banco de Dados)
-- **Lombok** (Redução de Boilerplate)
-- **Springdoc OpenAPI (Swagger)** (Documentação da API)
-- **Docker & Docker Compose** (Containerização)
+- **Linguagem & Framework:** Java 21, Spring Boot (WebMVC, Data JPA, Validation, WebSocket, Security, Kafka)
+- **Segurança & Autenticação:** Spring Security + Auth0 Java JWT (`java-jwt`)
+- **Mensageria & Eventos:** Apache Kafka (`spring-kafka`)
+- **Comunicação em Tempo Real:** WebSockets (STOMP + SockJS)
+- **Banco de Dados Relacional:** PostgreSQL 16
+- **Migração de Banco de Dados:** Flyway Migration (8 scripts versionados em `db/migration`)
+- **Documentação da API:** Springdoc OpenAPI / Swagger UI
+- **Containerização:** Docker (Multi-stage build) & Docker Compose
+- **Utilitários:** Lombok
 
-## Estrutura do Projeto e Funcionalidades
+---
 
-O projeto possui as seguintes entidades e funcionalidades principais:
-- **User**: Gerenciamento de usuários.
-- **Task**: Tarefas do Kanban, com funcionalidades que incluem título, descrição, status e arquivamento.
-- **TaskHistory**: Histórico de alterações e movimentações das tarefas.
-- **Arquivamento Automático (Cron Job)**: O sistema realiza uma varredura periódica de forma automática utilizando o método agendado `archiveOldCanceledTasks`, que localiza tarefas canceladas antigas e as arquiva, mantendo a organização do quadro e otimizando o banco de dados.
+## Arquitetura e Fluxo de Funcionamento
 
-A comunicação em tempo real via **WebSockets** (STOMP + SockJS) está ativada no endpoint `/ws`, permitindo que aplicações frontend (como React, Vue ou Angular) recebam atualizações das tarefas em tempo real (por exemplo, ao mover cards no Kanban).
+```
+                         +-----------------------+
+                         |      auth-server      |
+                         +-----------+-----------+
+                                     |
+                          Publica evento user-created
+                                     v
+                           +-------------------+
+                           |   Apache Kafka    |
+                           +---------+---------+
+                                     |
+                          Consome tópico user-created-topic
+                                     v
++-------------------+      +-------------------+      +-------------------+
+|  Cliente Frontend | ---> |    Kanban API     | ---> |   PostgreSQL 16   |
+| (React/Vue/STOMP) | <--- |   (Spring Boot)   |      |   (pg-aprendizado)|
++-------------------+      +---------+---------+      +-------------------+
+     (WebSockets)                    |
+     Notificações em tempo real <----+
+```
 
-## Pré-requisitos
+### Principais Componentes:
+1. **Sincronização de Usuários (Kafka Consumer):** O microserviço consome eventos do tópico `user-created-topic` através do `UserConsumer` e armazena os dados dos usuários na tabela espelho local `users_local`. Isso permite associar responsáveis (*assignees*) às tarefas sem acoplamento direto via HTTP com o servidor de autenticação.
+2. **Segurança & Controle de Acesso (RBAC):** Os tokens JWT emitidos pelo `auth-server` são validados via filtro customizado `SecurityFilter`. As rotas de criação e remoção de tarefas exigem a role `ROLE_ADMIN`.
+3. **Atualizações em Tempo Real (WebSockets STOMP):** Notificações automáticas via WebSocket no endpoint `/ws` informam os clientes conectados sempre que uma tarefa é criada, tem seu status alterado ou é arquivada.
+4. **Arquivamento Automático (Cron Job Scheduled):** A rotina agendada `archiveOldCanceledTasks` roda periodicamente para identificar tarefas canceladas há mais de determinado período e marca o atributo `archived = true`, disparando uma notificação WebSocket para atualização do front-end.
 
-Para rodar o projeto localmente, você precisará ter instalado:
-- [Java 21](https://adoptium.net/)
-- [Docker e Docker Compose](https://www.docker.com/) (Para rodar o banco de dados ou a stack completa via container)
-- *Maven (Opcional, pois o projeto usa o Maven Wrapper `mvnw`)*
+---
 
-## Configuração e Execução
+## Endpoints da API
 
-### Opção 1: Utilizando Docker Compose (Stack Completa)
+### Gestão de Tarefas (`/v1/task`)
 
-O projeto possui um arquivo `docker-compose.yml` que configura e sobe o banco de dados PostgreSQL e a API. 
+| Método | Rota | Descrição | Permissão |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/v1/task/create` | Cria uma nova tarefa | `ROLE_ADMIN` |
+| `GET` | `/v1/task` | Retorna todas as tarefas ativas (não arquivadas) | Autenticado |
+| `GET` | `/v1/task/paged` | Listagem paginada com filtros (status, busca por texto, intervalo de datas) | Autenticado |
+| `GET` | `/v1/task/count` | Retorna o total de tarefas agrupadas por status | Autenticado |
+| `PATCH` | `/v1/task/{taskId}/status` | Altera o status de uma tarefa (`OPEN`, `IN_PROGRESS`, `UNDER_REVIEW`, `DONE`, `CANCELED`) | Autenticado (Assignee ou Reporter) |
+| `GET` | `/v1/task/metrics` | Retorna métricas consolidadas de tarefas por mês no ano corrente | Autenticado |
 
-1. Certifique-se de configurar as seguintes variáveis de ambiente (via export ou em um arquivo `.env` caso configurado):
-   - `APRENDIZADO_DB_DATABASE`
-   - `APRENDIZADO_DB_USERNAME`
-   - `APRENDIZADO_DB_PASSWORD`
-   - `APRENDIZADO_DOCKER_DB_URL` (exemplo: `jdbc:postgresql://db:5432/nome_do_banco`)
+### Histórico de Tarefas (`/v1/tasks-histories`)
 
+| Método | Rota | Descrição | Permissão |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/v1/tasks-histories/{taskId}` | Retorna todo o histórico de alterações de status de uma tarefa específica | Autenticado |
+
+---
+
+## Comunicação em Tempo Real (WebSockets / STOMP)
+
+- **Endpoint de Conexão:** `/ws` (Suporta SockJS e autenticação por cabeçalho `Authorization: Bearer <token>` ou parâmetro `token`).
+- **Tópicos de Transmissão (Subscribe):**
+  - `/topic/task-created` – Notifica quando uma nova tarefa é criada.
+  - `/topic/task-status-changed` – Notifica alterações no status de uma tarefa.
+  - `/topic/tasks-archived` – Notifica a lista de IDs de tarefas que foram arquivadas.
+
+---
+
+## Variáveis de Ambiente
+
+A aplicação aceita as seguintes variáveis de ambiente (definidas nos perfis `dev` ou `prod`):
+
+| Variável | Descrição | Exemplo / Valor Padrão |
+| :--- | :--- | :--- |
+| `APRENDIZADO_DB_URL` / `DEV_DB_URL` | URL de conexão JDBC com o PostgreSQL | `jdbc:postgresql://db:5432/kanban_db` |
+| `APRENDIZADO_DB_USERNAME` / `DEV_DB_USERNAME` | Usuário do banco de dados | `postgres` |
+| `APRENDIZADO_DB_PASSWORD` / `DEV_DB_PASSWORD` | Senha do banco de dados | `postgres` |
+| `AUTH_JWT_SECRET` | Chave secreta HMAC256 para validação dos tokens JWT | `sua-chave-secreta-jwt` |
+| `API_SECURITY_TOKEN_ISSUER` | Emissor esperado do token JWT | `auth-server-api` |
+| `CORS_ALLOWED_ORIGINS` | Origens permitidas para requisições CORS (separadas por vírgula) | `http://localhost:3000,http://localhost:5173` |
+| `SPRING_KAFKA_BOOTSTRAP_SERVERS` | Endereço dos brokers do Apache Kafka | `kafka:29092` ou `localhost:9092` |
+
+---
+
+## Como Executar o Projeto
+
+### Pré-requisitos
+- [Java 21 JDK](https://adoptium.net/)
+- [Docker & Docker Compose](https://www.docker.com/)
+- Servidor de Autenticação (`auth-server`) e broker Kafka ativos na rede Docker (se for utilizar a stack completa)
+
+---
+
+### Opção 1: Subindo com Docker Compose (Stack Recomendada)
+
+O arquivo `docker-compose.yml` pré-configura a API e o banco de dados PostgreSQL conectados à rede externa `auth-server-network`.
+
+1. Defina as variáveis de ambiente necessárias no seu shell ou arquivo `.env`.
 2. Suba os containers:
    ```bash
    docker-compose up -d --build
    ```
-*(Neste modo, a API estará acessível na porta externa **8081**: `http://localhost:8081`)*
+3. A API estará disponível em `http://localhost:8082` e o PostgreSQL exposto na porta `5434`.
 
-### Opção 2: Executando a API Localmente (Desenvolvimento)
+---
 
-1. Você pode subir apenas o banco de dados através do Docker:
+### Opção 2: Execução Local em Modo de Desenvolvimento
+
+1. Suba apenas o banco de dados PostgreSQL via Docker:
    ```bash
    docker-compose up -d db
    ```
-2. Inicie a aplicação via Maven Wrapper:
-   ```bash
-   # Em sistemas baseados no Unix
-   ./mvnw spring-boot:run
-   
-   # No Windows
-   mvnw.cmd spring-boot:run
-   ```
-*(O Flyway irá rodar automaticamente no momento de inicialização (startup) do Spring para criar e migrar a estrutura do banco de dados baseando-se nos scripts dentro da pasta `db/migration`.)*
+2. Certifique-se de definir as variáveis para o perfil `dev` em seu ambiente.
+3. Inicie a aplicação via Maven Wrapper:
 
-## Documentação da API
+   - **Linux / macOS:**
+     ```bash
+     ./mvnw spring-boot:run
+     ```
+   - **Windows:**
+     ```cmd
+     mvnw.cmd spring-boot:run
+     ```
 
-A documentação interativa da API gerada automaticamente via Swagger (Springdoc OpenAPI) pode ser acessada através das seguintes rotas:
+---
 
-- **Swagger UI:** `http://localhost:8080/swagger-ui.html` (ou porta `8081` se estiver rodando via `docker-compose api`)
-- **Documentação JSON:** `http://localhost:8080/v3/api-docs`
+## Documentação Interativa da API (Swagger / OpenAPI)
 
-## Controllers da API
-- `TaskController`: Manipulação, listagem paginada e gestão do ciclo de vida e status das tarefas.
-- `UserController`: Operações envolvendo usuários.
-- `TaskHistoryController`: Consulta ao histórico de alterações nas tarefas.
+Com a aplicação em execução, a documentação Swagger pode ser acessada em:
+
+- **Swagger UI:** `http://localhost:8080/swagger-ui.html` (ou porta `8082` se executado via Docker Compose)
+- **OpenAPI JSON:** `http://localhost:8080/v3/api-docs`
+

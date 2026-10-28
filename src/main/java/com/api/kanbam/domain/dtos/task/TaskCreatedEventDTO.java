@@ -1,4 +1,6 @@
 package com.api.kanbam.domain.dtos.task;
 
-public record TaskCreatedEventDTO(TaskResponseDTO createdTask) {
+import java.util.UUID;
+
+public record TaskCreatedEventDTO(TaskResponseDTO createdTask, UUID triggeredId) {
 }
